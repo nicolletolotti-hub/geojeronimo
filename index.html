@@ -1,139 +1,89 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-br">
     <head>
         <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
         <link rel="stylesheet" href="css/leaflet.css">
-        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
         <link rel="stylesheet" href="css/qgis2web.css">
-        <link rel="stylesheet" href="css/fontawesome-all.min.css">
-        <link rel="stylesheet" href="css/leaflet.photon.css">
         <style>
-            html, body, #map {
-                width: 100%;
-                height: 100%;
-                padding: 0;
-                margin: 0;
-            }
+            html, body, #map { width: 100%; height: 100%; padding: 0; margin: 0; }
             #map { top: 60px !important; height: calc(100vh - 60px) !important; }
+            .controles {
+                position: fixed; top: 80px; right: 20px; 
+                background: white; padding: 15px; border-radius: 8px; 
+                z-index: 1000; box-shadow: 0 0 10px rgba(0,0,0,0.3);
+                width: 220px; font-family: sans-serif;
+            }
         </style>
-        <title>Defesa Civil - São Jerônimo</title>
+        <title>Defesa Civil - Simulação</title>
     </head>
     <body>
-        <div id="interface-dc" style="position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; font-family: sans-serif;">
-            <div style="background: #00274d; color: white; height: 60px; display: flex; align-items: center; padding: 0 20px;">
-                <div style="flex: 1;"><strong>DEFESA CIVIL | SÃO JERÔNIMO</strong></div>
-                <div style="flex: 1; text-align: center;">NÍVEL DO RIO (SGB): <strong id="txt-nivel-radar" style="color: #00d4ff;">Consultando...</strong></div>
-                <div style="flex: 1; text-align: right;"><button onclick="window.print()" style="background: #d90429; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">GERAR RELATÓRIO</button></div>
-            </div>
-            
-            <div style="position: fixed; top: 80px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); width: 220px;">
-                <label style="font-weight: bold; color: #333;">Simular Cota do Rio (m):</label>
-                <input type="range" id="slider-agua" min="0" max="15" step="0.1" value="0.8" style="width: 100%; margin-top: 10px;">
-                <div style="text-align: center; margin-top: 10px; font-size: 1.8em; font-weight: bold; color: #0077b6;">
-                    <span id="txt-cota-simulada">0.80</span>m
-                </div>
-                <p style="font-size: 0.8em; color: #666; margin-top: 5px;">Arraste para ver a mancha e bairros afetados.</p>
+        <div style="position: fixed; top: 0; width: 100%; height: 60px; background: #00274d; color: white; display: flex; align-items: center; padding: 0 20px; z-index: 1000; font-family: sans-serif;">
+            <strong>DEFESA CIVIL | SÃO JERÔNIMO</strong>
+        </div>
+
+        <div class="controles">
+            <label style="font-weight: bold;">Cota Simulada:</label>
+            <input type="range" id="slider-agua" min="0" max="15" step="0.1" value="0.8" style="width: 100%; margin: 10px 0;">
+            <div style="text-align: center; font-size: 2em; font-weight: bold; color: #0077b6;">
+                <span id="txt-cota-simulada">0.8</span>m
             </div>
         </div>
 
         <div id="map"></div>
 
-        <script src="js/qgis2web_expressions.js"></script>
         <script src="js/leaflet.js"></script>
-        <script src="js/L.Control.Layers.Tree.min.js"></script>
-        <script src="js/leaflet.rotatedMarker.js"></script>
-        <script src="js/leaflet.pattern.js"></script>
-        <script src="js/leaflet-hash.js"></script>
-        <script src="js/Autolinker.min.js"></script>
-        <script src="js/rbush.min.js"></script>
-        <script src="js/labelgun.min.js"></script>
-        <script src="js/labels.js"></script>
-        <script src="js/leaflet.photon.js"></script>
-        
         <script src="ruas_2.js"></script>
         <script src="bairros_sj_3.js"></script>
 
         <script>
-        var map = L.map('map', {
-            zoomControl: true, maxZoom: 28, minZoom: 1
-        }).fitBounds([[-30.014,-51.744],[-29.912,-51.637]]);
-        
-        // Mapa Base
-        map.createPane('pane_OpenStreetMap_0');
-        map.getPane('pane_OpenStreetMap_0').style.zIndex = 400;
-        var layer_OpenStreetMap_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            pane: 'pane_OpenStreetMap_0',
-            opacity: 1.0
+        // 1. Inicializa o Mapa
+        var map = L.map('map').setView([-29.96, -51.69], 14);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // MANCHA DE INUNDAÇÃO (Ajustado para começar invisível)
-        map.createPane('pane_output_hh_1');
-        map.getPane('pane_output_hh_1').style.zIndex = 401;
-        var img_output_hh_1 = 'images/output_hh_1.png';
-        var img_bounds_output_hh_1 = [[-29.99152776666667,-51.814861122222226],[-29.947083322222227,-51.64986112222223]];
-        var layer_output_hh_1 = new L.imageOverlay(img_output_hh_1, img_bounds_output_hh_1, {
-            pane: 'pane_output_hh_1',
-            opacity: 0.0 // Começa invisível
+        // 2. Carrega a Mancha (Verifique se a pasta se chama 'images' ou 'data')
+        var img_bounds = [[-29.99152776666667,-51.814861122222226],[-29.947083322222227,-51.64986112222223]];
+        var layer_mancha = L.imageOverlay('images/output_hh_1.png', img_bounds, {
+            opacity: 0.0,
+            zIndex: 400
         }).addTo(map);
 
-        // CAMADA RUAS
-        map.createPane('pane_ruas_2');
-        map.getPane('pane_ruas_2').style.zIndex = 402;
-        var layer_ruas_2 = new L.geoJson(json_ruas_2, {
-            pane: 'pane_ruas_2',
-            style: { color: 'rgba(0,0,0,0.3)', weight: 1.0, interactive: false }
+        // 3. Carrega Bairros
+        var layer_bairros = L.geoJson(json_bairros_sj_3, {
+            style: { color: '#3388ff', weight: 1, fillOpacity: 0.1 }
         }).addTo(map);
 
-        // CAMADA BAIRROS
-        map.createPane('pane_bairros_sj_3');
-        map.getPane('pane_bairros_sj_3').style.zIndex = 403;
-        var layer_bairros_sj_3 = new L.geoJson(json_bairros_sj_3, {
-            pane: 'pane_bairros_sj_3',
-            style: function(feature) {
-                return { fillColor: '#3388ff', color: '#232323', fillOpacity: 0.1, weight: 1.0 };
-            },
-            onEachFeature: function (feature, layer) {
-                layer.bindPopup('<strong>Bairro:</strong> ' + feature.properties['nome'] + 
-                                '<br><strong>Cota Crítica:</strong> ' + feature.properties['cota_minima'] + 'm');
-            }
-        }).addTo(map);
-
-        // LÓGICA DE INTERAÇÃO (SLIDER)
+        // 4. LÓGICA DO SLIDER (O CORAÇÃO DO SITE)
         const slider = document.getElementById('slider-agua');
-        const txtCota = document.getElementById('txt-cota-simulada');
+        const display = document.getElementById('txt-cota-simulada');
 
-        slider.addEventListener('input', function() {
-            const valor = parseFloat(this.value).toFixed(2);
-            txtCota.innerHTML = valor;
-            
-            // 1. Faz a mancha aparecer (Opacidade aumenta conforme o nível sobe)
-            if (typeof layer_output_hh_1 !== 'undefined') {
-                // Se valor for maior que 1m, começa a mostrar a mancha azul
-                var novaOpacidade = (valor > 1.0) ? (valor / 12) : 0; 
-                if(novaOpacidade > 0.8) novaOpacidade = 0.8; // Limite de transparência
-                layer_output_hh_1.setOpacity(novaOpacidade);
+        slider.oninput = function() {
+            var valor = parseFloat(this.value);
+            display.innerHTML = valor.toFixed(2); // Atualiza o texto na tela
+
+            // Faz a mancha aparecer proporcionalmente
+            // Se o nível for baixo (ex: 1m), opacidade é quase 0. Se for 15m, opacidade é 0.8
+            if (valor > 1.0) {
+                var novaOpacidade = (valor / 15);
+                layer_mancha.setOpacity(Math.min(novaOpacidade, 0.8));
+            } else {
+                layer_mancha.setOpacity(0);
             }
 
-            // 2. Alerta nos Bairros (Pinta de Vermelho se a cota atingir o valor do slider)
-            if (typeof layer_bairros_sj_3 !== 'undefined') {
-                layer_bairros_sj_3.eachLayer(function (layer) {
-                    var cMin = parseFloat(layer.feature.properties['cota_minima']);
-                    if (valor >= cMin && cMin > 0) {
-                        layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.6});
-                    } else {
-                        layer.setStyle({fillColor: '#3388ff', fillOpacity: 0.1});
-                    }
-                });
-            }
-        });
-
-        // Função para simular busca de nível real (opcional)
-        document.getElementById('txt-nivel-radar').innerHTML = "2.45m";
-
+            // Pinta os bairros de vermelho se a cota for atingida
+            layer_bairros.eachLayer(function(layer) {
+                var cotaBairro = parseFloat(layer.feature.properties['cota_minima']);
+                if (valor >= cotaBairro && cotaBairro > 0) {
+                    layer.setStyle({ fillColor: '#ff0000', fillOpacity: 0.5 });
+                } else {
+                    layer.setStyle({ fillColor: '#3388ff', fillOpacity: 0.1 });
+                }
+            });
+        };
         </script>
     </body>
 </html>

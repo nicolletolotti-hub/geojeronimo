@@ -410,6 +410,33 @@
         map.addLayer(layer_bairros_sj_3);
         setBounds();
         </script> 
+        // Criando a camada da mancha de água (azul transparente)
+var camadaAgua = L.rectangle([[-30.1, -51.9], [-29.8, -51.5]], {
+    color: "#0077b6",
+    weight: 0,
+    fillColor: "#0077b6",
+    fillOpacity: 0.4
+}).addTo(map);
+
+// Função para atualizar o nível
+function atualizarManchaInundacao(cota) {
+    // Aqui fazemos a lógica de aparecer/sumir baseado na cota
+    // Na sexta, vamos vincular isso aos polígonos de elevação que você tem no QGIS
+    console.log("Nível simulado: " + cota + "m");
+    
+    // Alerta visual no menu
+    var radarTxt = document.getElementById('txt-nivel-radar');
+    if(cota > 5.0) {
+        radarTxt.style.color = '#ff9f1c'; // Laranja
+        radarTxt.innerHTML = cota + "m (ALERTA)";
+    } else if(cota > 7.0) {
+        radarTxt.style.color = '#e63946'; // Vermelho
+        radarTxt.innerHTML = cota + "m (EMERGÊNCIA)";
+    } else {
+        radarTxt.style.color = '#00d4ff';
+        radarTxt.innerHTML = cota + "m";
+    }
+}
         <script>
 // Referências dos elementos
 const slider = document.getElementById('slider-agua');

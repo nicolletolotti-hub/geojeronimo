@@ -3,14 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoramento Defesa Civil - São Jerônimo</title>
+    <title>Defesa Civil - São Jerônimo</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #map { width: 100%; height: calc(100vh - 70px); margin-top: 70px; background: #f0f0f0; }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #map { width: 100%; height: calc(100vh - 70px); margin-top: 70px; }
         
-        /* Cabeçalho Profissional */
+        /* Cabeçalho */
         .header {
             position: fixed; top: 0; width: 100%; height: 70px;
             background: #00274d; color: white; display: flex;
@@ -18,129 +18,135 @@
             padding: 0 20px; z-index: 1000; box-sizing: border-box;
         }
 
-        /* Painel de Controle */
+        /* Painel Lateral de Controle */
         .control-panel {
-            position: fixed; top: 90px; right: 20px;
-            background: white; padding: 20px; border-radius: 12px;
+            position: fixed; top: 90px; left: 20px;
+            background: white; padding: 15px; border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 260px; z-index: 1000;
+            width: 280px; z-index: 1000;
         }
 
-        .cota-badge {
-            background: #e1f5fe; color: #0288d1;
-            padding: 10px; border-radius: 8px;
-            text-align: center; font-size: 1.2em; font-weight: bold;
-            margin: 10px 0; border: 1px solid #b3e5fc;
-        }
-
-        input[type=range] { width: 100%; cursor: pointer; }
+        .section-title { font-weight: bold; color: #00274d; margin-bottom: 10px; display: block; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         
-        .status-real { font-size: 0.85em; color: #4caf50; font-weight: bold; }
+        .cota-display {
+            background: #f0f7ff; color: #0056b3;
+            padding: 15px; border-radius: 8px;
+            text-align: center; font-size: 2em; font-weight: bold;
+            margin: 10px 0; border: 1px solid #cce5ff;
+        }
+
+        select, input[type=range] { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        
+        .status-badge { font-size: 0.8em; padding: 3px 8px; border-radius: 10px; background: #4caf50; color: white; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div><strong>DEFESA CIVIL</strong> | SÃO JERÔNIMO</div>
-        <div style="text-align: right;">
-            <span id="data-atual" style="font-size: 0.8em; display: block;"></span>
-            <span class="status-real">● NÍVEL EM TEMPO REAL: <span id="nivel-sgb">2.45</span>m</span>
+        <div><strong>DEFESA CIVIL</strong> SÃO JERÔNIMO</div>
+        <div>
+            <span class="status-badge">SISTEMA ATIVO</span>
+            <span id="data-atual" style="margin-left: 10px; font-size: 0.9em;"></span>
         </div>
     </div>
 
     <div class="control-panel">
-        <label style="font-weight: bold; color: #333;">Simulador de Inundação</label>
-        <div class="cota-badge"><span id="txt-cota">2.45</span> m</div>
+        <span class="section-title">1. IR PARA BAIRRO</span>
+        <select id="select-bairro">
+            <option value="">Selecione um bairro...</option>
+        </select>
+
+        <br><br>
+
+        <span class="section-title">2. SIMULAR COTA (m)</span>
+        <div class="cota-display"><span id="txt-cota">2.45</span>m</div>
         <input type="range" id="slider-agua" min="0.8" max="15" step="0.1" value="2.45">
         
-        <p style="font-size: 0.75em; color: #666; line-height: 1.4; margin-top: 15px;">
-            * A mancha azul representa as áreas atingidas conforme a topografia local.
+        <p style="font-size: 0.7em; color: #666; margin-top: 10px;">
+            * A mancia de inundação é ajustada dinamicamente com base na topografia.
         </p>
     </div>
 
     <div id="map"></div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="data/bairros_sj_3.js"></script>
+
     <script>
-    // 1. Configuração do Mapa
-    var map = L.map('map').setView([-29.962, -51.695], 14);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
+        // --- CONFIGURAÇÃO INICIAL ---
+        const nivelInicial = 2.45; // Nível atual do rio (pode ser dinâmico no futuro)
+        
+        var map = L.map('map', { zoomControl: false }).setView([-29.962, -51.695], 14);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // 2. A Mancha de Inundação
-    var imgBounds = [[-29.9915,-51.8148],[-29.9470,-51.6498]];
-    var layerMancha = L.imageOverlay('images/output_hh_1.png', imgBounds, {
-        opacity: 0.3, 
-        zIndex: 500
-    }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // 3. Função de Zoom ao clicar
-    function zoomToFeature(e) {
-        var layer = e.target;
-        map.fitBounds(layer.getBounds(), {
-            padding: [50, 50], // Espaço de respiro nas bordas
-            maxZoom: 16        // Não deixa dar zoom demais e perder o contexto
+        // --- CAMADAS ---
+        var imgBounds = [[-29.9915,-51.8148],[-29.9470,-51.6498]];
+        var layerMancha = L.imageOverlay('images/output_hh_1.png', imgBounds, {
+            opacity: 0.2, 
+            zIndex: 500
+        }).addTo(map);
+
+        var layerBairros;
+        const selectBairro = document.getElementById('select-bairro');
+
+        if (typeof json_bairros_sj_3 !== 'undefined') {
+            layerBairros = L.geoJson(json_bairros_sj_3, {
+                style: { color: '#00274d', weight: 1.5, fillOpacity: 0.05 },
+                onEachFeature: function(feature, layer) {
+                    // Preenche o menu suspenso (Select)
+                    let option = document.createElement('option');
+                    option.value = layer._leaflet_id;
+                    option.text = feature.properties.nome;
+                    selectBairro.appendChild(option);
+
+                    layer.bindTooltip(feature.properties.nome);
+                }
+            }).addTo(map);
+        }
+
+        // --- INTERATIVIDADE ---
+
+        // 1. Zoom via Select
+        selectBairro.addEventListener('change', function() {
+            if (this.value) {
+                let layer = layerBairros.getLayer(this.value);
+                map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+            }
         });
-    }
 
-    // 4. Camada de Bairros com Interatividade
-    var layerBairros;
-    if (typeof json_bairros_sj_3 !== 'undefined') {
-        layerBairros = L.geoJson(json_bairros_sj_3, {
-            style: { 
-                color: '#333', 
-                weight: 2, 
-                fillOpacity: 0.1,
-                dashArray: '3' // Deixa a linha do bairro pontilhada para ficar mais leve
-            },
-            onEachFeature: function(feature, layer) {
-                // Adiciona o nome do bairro ao passar o mouse
-                layer.bindTooltip(feature.properties.nome);
-                
-                // Eventos de mouse
-                layer.on({
-                    click: zoomToFeature, // O ZOOM ACONTECE AQUI
-                    mouseover: function(e) {
-                        this.setStyle({ fillOpacity: 0.3, weight: 3 });
-                    },
-                    mouseout: function(e) {
-                        layerBairros.resetStyle(e.target);
+        // 2. Lógica do Slider e Mancha
+        const slider = document.getElementById('slider-agua');
+        const txtCota = document.getElementById('txt-cota');
+
+        function atualizarMapa(valor) {
+            txtCota.innerHTML = parseFloat(valor).toFixed(2);
+            
+            // Opacidade da mancha baseada na cota
+            // Regra: começa a aparecer em 1.5m e atinge 80% em 15m
+            let op = (valor > 1.0) ? (valor / 15) : 0;
+            layerMancha.setOpacity(Math.min(op, 0.8));
+
+            // Pintar polígonos dos bairros
+            if (layerBairros) {
+                layerBairros.eachLayer(function(l) {
+                    let cMin = l.feature.properties.cota_minima || 2.0; // Se null, assume 2.0
+                    if (valor >= cMin) {
+                        l.setStyle({ fillColor: '#ff0000', fillOpacity: 0.2 });
+                    } else {
+                        l.setStyle({ fillColor: '#00274d', fillOpacity: 0.05 });
                     }
                 });
             }
-        }).addTo(map);
-    }
-
-    // 5. Lógica do Slider (Mantida e Melhorada)
-    const slider = document.getElementById('slider-agua');
-    const txtCota = document.getElementById('txt-cota');
-
-    slider.addEventListener('input', function() {
-        var cota = parseFloat(this.value);
-        txtCota.innerHTML = cota.toFixed(2);
-
-        // Ajuste da Mancha
-        if (layerMancha) {
-            var novaOpacidade = (cota / 15); 
-            if (cota <= 1.0) novaOpacidade = 0;
-            layerMancha.setOpacity(Math.min(novaOpacidade, 0.8));
         }
 
-        // Alerta Visual nos Bairros
-        if (layerBairros) {
-            layerBairros.eachLayer(function(l) {
-                var cMin = l.feature.properties.cota_minima;
-                if (cMin && cota >= cMin) {
-                    l.setStyle({ fillColor: '#d90429', fillOpacity: 0.4 });
-                } else {
-                    l.setStyle({ fillColor: '#333', fillOpacity: 0.1 });
-                }
-            });
-        }
-    });
+        slider.addEventListener('input', (e) => atualizarMapa(e.target.value));
 
-    document.getElementById('data-atual').innerHTML = new Date().toLocaleDateString('pt-BR');
-</script>
+        // Inicialização
+        document.getElementById('data-atual').innerHTML = new Date().toLocaleDateString('pt-BR');
+        atualizarMapa(nivelInicial);
+
+    </script>
 </body>
 </html>

@@ -445,28 +445,26 @@ const txtCota = document.getElementById('txt-cota-simulada');
 slider.addEventListener('input', function() {
     const valor = parseFloat(this.value).toFixed(2);
     txtCota.innerHTML = valor;
-    atualizarSimulacao(valor);
-});
-
-function atualizarSimulacao(cota) {
-    // 1. Controla a transparência da Mancha (output_hh)
+    
+    // 1. Controle da Mancha de Inundação (Ajustado para o nome real da sua camada)
     if (typeof lyr_output_hh_1 !== 'undefined') {
-        var opacidade = (cota > 0.8) ? (cota / 15) : 0;
+        // Faz a mancha aparecer gradualmente conforme o slider sobe
+        var opacidade = (valor > 0.8) ? (valor / 15) : 0;
         lyr_output_hh_1.setOpacity(opacidade);
     }
 
-    // 2. Pinta os Bairros (bairros_sj_3) de vermelho se atingir a cota
+    // 2. Alerta dos Bairros (Pintando de vermelho conforme a cota_minima)
     if (typeof lyr_bairros_sj_3 !== 'undefined') {
         lyr_bairros_sj_3.eachLayer(function (layer) {
-            var cotaMin = parseFloat(layer.feature.properties['cota_minima']);
-            if (cota >= cotaMin && cotaMin > 0) {
+            var cMin = parseFloat(layer.feature.properties['cota_minima']);
+            if (valor >= cMin && cMin > 0) {
                 layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.7});
             } else {
                 layer.setStyle({fillColor: '#3388ff', fillOpacity: 0.2});
             }
         });
     }
-}
-</script>       
+});
+</script>      
     </body>
 </html>

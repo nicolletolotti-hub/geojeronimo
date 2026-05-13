@@ -26,15 +26,17 @@
         <div id="interface-dc" style="position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; font-family: sans-serif;">
             <div style="background: #00274d; color: white; height: 60px; display: flex; align-items: center; padding: 0 20px;">
                 <div style="flex: 1;"><strong>DEFESA CIVIL | SÃO JERÔNIMO</strong></div>
-                <div style="flex: 1; text-align: center;">NÍVEL DO RIO: <strong id="txt-nivel-radar" style="color: #00d4ff;">Carregando...</strong></div>
-                <div style="flex: 1; text-align: right;"><button style="background: #d90429; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">EMITIR RELATÓRIO</button></div>
+                <div style="flex: 1; text-align: center;">NÍVEL DO RIO (SGB): <strong id="txt-nivel-radar" style="color: #00d4ff;">Consultando...</strong></div>
+                <div style="flex: 1; text-align: right;"><button onclick="window.print()" style="background: #d90429; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">GERAR RELATÓRIO</button></div>
             </div>
-            <div style="position: fixed; top: 80px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); width: 200px;">
-                <label>Simular Cota (m):</label>
-                <input type="range" id="slider-agua" min="0" max="15" step="0.01" value="0.8" style="width: 100%;">
-                <div style="text-align: center; margin-top: 10px; font-size: 1.5em; font-weight: bold; color: #0077b6;">
+            
+            <div style="position: fixed; top: 80px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); width: 220px;">
+                <label style="font-weight: bold; color: #333;">Simular Cota do Rio (m):</label>
+                <input type="range" id="slider-agua" min="0" max="15" step="0.1" value="0.8" style="width: 100%; margin-top: 10px;">
+                <div style="text-align: center; margin-top: 10px; font-size: 1.8em; font-weight: bold; color: #0077b6;">
                     <span id="txt-cota-simulada">0.80</span>m
                 </div>
+                <p style="font-size: 0.8em; color: #666; margin-top: 5px;">Arraste para ver a mancha e bairros afetados.</p>
             </div>
         </div>
 
@@ -57,34 +59,33 @@
 
         <script>
         var map = L.map('map', {
-            zoomControl:false, maxZoom:28, minZoom:1
-        }).fitBounds([[-30.014004056107964,-51.744004454730245],[-29.912484522545903,-51.63779579721613]]);
+            zoomControl: true, maxZoom: 28, minZoom: 1
+        }).fitBounds([[-30.014,-51.744],[-29.912,-51.637]]);
         
-        var hash = new L.Hash(map);
-        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
-
+        // Mapa Base
         map.createPane('pane_OpenStreetMap_0');
         map.getPane('pane_OpenStreetMap_0').style.zIndex = 400;
         var layer_OpenStreetMap_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             pane: 'pane_OpenStreetMap_0',
-            opacity: 1.0,
-            minZoom: 1,
-            maxZoom: 28
+            opacity: 1.0
         }).addTo(map);
 
-        // CAMINHO DA IMAGEM CORRIGIDO PARA images/
+        // MANCHA DE INUNDAÇÃO (Ajustado para começar invisível)
         map.createPane('pane_output_hh_1');
         map.getPane('pane_output_hh_1').style.zIndex = 401;
         var img_output_hh_1 = 'images/output_hh_1.png';
         var img_bounds_output_hh_1 = [[-29.99152776666667,-51.814861122222226],[-29.947083322222227,-51.64986112222223]];
-        var layer_output_hh_1 = new L.imageOverlay(img_output_hh_1, img_bounds_output_hh_1, {pane: 'pane_output_hh_1'}).addTo(map);
+        var layer_output_hh_1 = new L.imageOverlay(img_output_hh_1, img_bounds_output_hh_1, {
+            pane: 'pane_output_hh_1',
+            opacity: 0.0 // Começa invisível
+        }).addTo(map);
 
         // CAMADA RUAS
         map.createPane('pane_ruas_2');
         map.getPane('pane_ruas_2').style.zIndex = 402;
         var layer_ruas_2 = new L.geoJson(json_ruas_2, {
             pane: 'pane_ruas_2',
-            style: { color: 'rgba(213,180,60,1.0)', weight: 1.0 }
+            style: { color: 'rgba(0,0,0,0.3)', weight: 1.0, interactive: false }
         }).addTo(map);
 
         // CAMADA BAIRROS
@@ -92,14 +93,16 @@
         map.getPane('pane_bairros_sj_3').style.zIndex = 403;
         var layer_bairros_sj_3 = new L.geoJson(json_bairros_sj_3, {
             pane: 'pane_bairros_sj_3',
-            style: { fillColor: 'rgba(93,149,34,0.2)', color: 'rgba(35,35,35,0.3)', fillOpacity: 1, weight: 1.0 },
+            style: function(feature) {
+                return { fillColor: '#3388ff', color: '#232323', fillOpacity: 0.1, weight: 1.0 };
+            },
             onEachFeature: function (feature, layer) {
-                var popupContent = 'Bairro: ' + feature.properties['nome'] + '<br>Cota Mínima: ' + feature.properties['cota_minima'] + 'm';
-                layer.bindPopup(popupContent);
+                layer.bindPopup('<strong>Bairro:</strong> ' + feature.properties['nome'] + 
+                                '<br><strong>Cota Crítica:</strong> ' + feature.properties['cota_minima'] + 'm');
             }
         }).addTo(map);
 
-        // LÓGICA DO SLIDER
+        // LÓGICA DE INTERAÇÃO (SLIDER)
         const slider = document.getElementById('slider-agua');
         const txtCota = document.getElementById('txt-cota-simulada');
 
@@ -107,24 +110,30 @@
             const valor = parseFloat(this.value).toFixed(2);
             txtCota.innerHTML = valor;
             
-            // Controle da Mancha
+            // 1. Faz a mancha aparecer (Opacidade aumenta conforme o nível sobe)
             if (typeof layer_output_hh_1 !== 'undefined') {
-                var opacidade = (valor > 0.8) ? (valor / 15) : 0;
-                layer_output_hh_1.setOpacity(opacidade);
+                // Se valor for maior que 1m, começa a mostrar a mancha azul
+                var novaOpacidade = (valor > 1.0) ? (valor / 12) : 0; 
+                if(novaOpacidade > 0.8) novaOpacidade = 0.8; // Limite de transparência
+                layer_output_hh_1.setOpacity(novaOpacidade);
             }
 
-            // Alerta dos Bairros
+            // 2. Alerta nos Bairros (Pinta de Vermelho se a cota atingir o valor do slider)
             if (typeof layer_bairros_sj_3 !== 'undefined') {
                 layer_bairros_sj_3.eachLayer(function (layer) {
                     var cMin = parseFloat(layer.feature.properties['cota_minima']);
                     if (valor >= cMin && cMin > 0) {
-                        layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.7});
+                        layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.6});
                     } else {
-                        layer.setStyle({fillColor: 'rgba(93,149,34,0.2)', fillOpacity: 0.2});
+                        layer.setStyle({fillColor: '#3388ff', fillOpacity: 0.1});
                     }
                 });
             }
         });
+
+        // Função para simular busca de nível real (opcional)
+        document.getElementById('txt-nivel-radar').innerHTML = "2.45m";
+
         </script>
     </body>
 </html>

@@ -141,7 +141,7 @@
         map.addLayer(layer_OpenStreetMap_0);
         map.createPane('pane_output_hh_1');
         map.getPane('pane_output_hh_1').style.zIndex = 401;
-        var img_output_hh_1 = 'data/output_hh_1.png';
+        var img_output_hh_1 = 'images/output_hh_1.png';
         var img_bounds_output_hh_1 = [[-29.99152776666667,-51.814861122222226],[-29.947083322222227,-51.64986112222223]];
         var layer_output_hh_1 = new L.imageOverlay(img_output_hh_1,
                                               img_bounds_output_hh_1,
@@ -438,24 +438,19 @@
             }
         });
         </script> 
-        <script>
-const slider = document.getElementById('slider-agua');
-const txtCota = document.getElementById('txt-cota-simulada');
-
-slider.addEventListener('input', function() {
+        slider.addEventListener('input', function() {
     const valor = parseFloat(this.value).toFixed(2);
     txtCota.innerHTML = valor;
     
-    // 1. Controle da Mancha de Inundação (Ajustado para o nome real da sua camada)
-    if (typeof lyr_output_hh_1 !== 'undefined') {
-        // Faz a mancha aparecer gradualmente conforme o slider sobe
+    // 1. Controle da Mancha (ajustado para layer_output_hh_1)
+    if (typeof layer_output_hh_1 !== 'undefined') {
         var opacidade = (valor > 0.8) ? (valor / 15) : 0;
-        lyr_output_hh_1.setOpacity(opacidade);
+        layer_output_hh_1.setOpacity(opacidade);
     }
 
-    // 2. Alerta dos Bairros (Pintando de vermelho conforme a cota_minima)
-    if (typeof lyr_bairros_sj_3 !== 'undefined') {
-        lyr_bairros_sj_3.eachLayer(function (layer) {
+    // 2. Alerta dos Bairros (ajustado para layer_bairros_sj_3)
+    if (typeof layer_bairros_sj_3 !== 'undefined') {
+        layer_bairros_sj_3.eachLayer(function (layer) {
             var cMin = parseFloat(layer.feature.properties['cota_minima']);
             if (valor >= cMin && cMin > 0) {
                 layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.7});
@@ -464,7 +459,6 @@ slider.addEventListener('input', function() {
             }
         });
     }
-});
-</script>      
+});      
     </body>
 </html>

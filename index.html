@@ -60,63 +60,87 @@
 
     <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="data/bairros_sj_3.js"></script> <script>
-        // 1. Configuração do Mapa
-        var map = L.map('map').setView([-29.962, -51.695], 14);
-        
-        var baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+    <script>
+    // 1. Configuração do Mapa
+    var map = L.map('map').setView([-29.962, -51.695], 14);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-        // 2. A Mancha de Inundação (O mais importante para a topografia)
-        var imgBounds = [[-29.9915,-51.8148],[-29.9470,-51.6498]];
-        var layerMancha = L.imageOverlay('images/output_hh_1.png', imgBounds, {
-            opacity: 0.3, // Começa com a opacidade do nível atual
-            zIndex: 500
-        }).addTo(map);
+    // 2. A Mancha de Inundação
+    var imgBounds = [[-29.9915,-51.8148],[-29.9470,-51.6498]];
+    var layerMancha = L.imageOverlay('images/output_hh_1.png', imgBounds, {
+        opacity: 0.3, 
+        zIndex: 500
+    }).addTo(map);
 
-        // 3. Camada de Bairros (Para identificação)
-        var layerBairros;
-        if (typeof json_bairros_sj_3 !== 'undefined') {
-            layerBairros = L.geoJson(json_bairros_sj_3, {
-                style: { color: '#333', weight: 1, fillOpacity: 0.05 },
-                onEachFeature: function(feature, layer) {
-                    layer.bindTooltip(feature.properties.nome, {permanent: false, sticky: true});
-                }
-            }).addTo(map);
-        }
+    // 3. Função de Zoom ao clicar
+    function zoomToFeature(e) {
+        var layer = e.target;
+        map.fitBounds(layer.getBounds(), {
+            padding: [50, 50], // Espaço de respiro nas bordas
+            maxZoom: 16        // Não deixa dar zoom demais e perder o contexto
+        });
+    }
 
-        // 4. Lógica de Sincronização
-        const slider = document.getElementById('slider-agua');
-        const txtCota = document.getElementById('txt-cota');
-        const nivelReal = 2.45; // Simulação de dado que viria do SGB
-
-        slider.addEventListener('input', function() {
-            var cota = parseFloat(this.value);
-            txtCota.innerHTML = cota.toFixed(2);
-
-            // Ajuste Dinâmico da Mancha:
-            // Quanto maior a cota, mais forte (opaca) a mancha fica
-            var novaOpacidade = (cota / 15); 
-            if (cota <= 1.0) novaOpacidade = 0;
-            layerMancha.setOpacity(Math.min(novaOpacidade, 0.8));
-
-            // Pintar bairros apenas como aviso visual rápido
-            if (layerBairros) {
-                layerBairros.eachLayer(function(layer) {
-                    var cMin = layer.feature.properties.cota_minima;
-                    if (cMin && cota >= cMin) {
-                        layer.setStyle({ fillColor: '#d90429', fillOpacity: 0.3 });
-                    } else {
-                        layer.setStyle({ fillColor: '#333', fillOpacity: 0.05 });
+    // 4. Camada de Bairros com Interatividade
+    var layerBairros;
+    if (typeof json_bairros_sj_3 !== 'undefined') {
+        layerBairros = L.geoJson(json_bairros_sj_3, {
+            style: { 
+                color: '#333', 
+                weight: 2, 
+                fillOpacity: 0.1,
+                dashArray: '3' // Deixa a linha do bairro pontilhada para ficar mais leve
+            },
+            onEachFeature: function(feature, layer) {
+                // Adiciona o nome do bairro ao passar o mouse
+                layer.bindTooltip(feature.properties.nome);
+                
+                // Eventos de mouse
+                layer.on({
+                    click: zoomToFeature, // O ZOOM ACONTECE AQUI
+                    mouseover: function(e) {
+                        this.setStyle({ fillOpacity: 0.3, weight: 3 });
+                    },
+                    mouseout: function(e) {
+                        layerBairros.resetStyle(e.target);
                     }
                 });
             }
-        });
+        }).addTo(map);
+    }
 
-        // Data atualizada
-        document.getElementById('data-atual').innerHTML = new Date().toLocaleDateString('pt-BR');
-    </script>
+    // 5. Lógica do Slider (Mantida e Melhorada)
+    const slider = document.getElementById('slider-agua');
+    const txtCota = document.getElementById('txt-cota');
+
+    slider.addEventListener('input', function() {
+        var cota = parseFloat(this.value);
+        txtCota.innerHTML = cota.toFixed(2);
+
+        // Ajuste da Mancha
+        if (layerMancha) {
+            var novaOpacidade = (cota / 15); 
+            if (cota <= 1.0) novaOpacidade = 0;
+            layerMancha.setOpacity(Math.min(novaOpacidade, 0.8));
+        }
+
+        // Alerta Visual nos Bairros
+        if (layerBairros) {
+            layerBairros.eachLayer(function(l) {
+                var cMin = l.feature.properties.cota_minima;
+                if (cMin && cota >= cMin) {
+                    l.setStyle({ fillColor: '#d90429', fillOpacity: 0.4 });
+                } else {
+                    l.setStyle({ fillColor: '#333', fillOpacity: 0.1 });
+                }
+            });
+        }
+    });
+
+    document.getElementById('data-atual').innerHTML = new Date().toLocaleDateString('pt-BR');
+</script>
 </body>
 </html>

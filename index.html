@@ -50,8 +50,8 @@
         <script src="js/labelgun.min.js"></script>
         <script src="js/labels.js"></script>
         <script src="js/leaflet.photon.js"></script>
-        <script src="data/ruas_2.js"></script>
-        <script src="data/bairros_sj_3.js"></script>
+        <script src="ruas_2.js"></script>
+<script src="bairros_sj_3.js"></script>
         <script>
         var map = L.map('map', {
             zoomControl:false, maxZoom:28, minZoom:1
@@ -437,28 +437,34 @@
                 return this._bounds;
             }
         });
-        </script> 
-        slider.addEventListener('input', function() {
+        <script>
+const slider = document.getElementById('slider-agua');
+const txtCota = document.getElementById('txt-cota-simulada');
+
+slider.addEventListener('input', function() {
     const valor = parseFloat(this.value).toFixed(2);
     txtCota.innerHTML = valor;
     
-    // 1. Controle da Mancha (ajustado para layer_output_hh_1)
+    // 1. Controle da Mancha (Ajustado para layer_output_hh_1)
     if (typeof layer_output_hh_1 !== 'undefined') {
         var opacidade = (valor > 0.8) ? (valor / 15) : 0;
         layer_output_hh_1.setOpacity(opacidade);
     }
 
-    // 2. Alerta dos Bairros (ajustado para layer_bairros_sj_3)
+    // 2. Alerta dos Bairros (Ajustado para layer_bairros_sj_3)
     if (typeof layer_bairros_sj_3 !== 'undefined') {
         layer_bairros_sj_3.eachLayer(function (layer) {
-            var cMin = parseFloat(layer.feature.properties['cota_minima']);
-            if (valor >= cMin && cMin > 0) {
-                layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.7});
-            } else {
-                layer.setStyle({fillColor: '#3388ff', fillOpacity: 0.2});
+            if (layer.feature && layer.feature.properties) {
+                var cMin = parseFloat(layer.feature.properties['cota_minima']);
+                if (valor >= cMin && cMin > 0) {
+                    layer.setStyle({fillColor: '#ff0000', fillOpacity: 0.7});
+                } else {
+                    layer.setStyle({fillColor: '#3388ff', fillOpacity: 0.2});
+                }
             }
         });
     }
-});      
+});
+</script>
     </body>
 </html>
